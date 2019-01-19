@@ -2,90 +2,139 @@ import discord
 import requests
 import json
 import hashlib
+import os
+import asyncio
+import time
 
-__version__= "0.0.1"
-TOKEN = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-CHANNEL = str('YYYYYYYYYYYYYYYYYYYY')
+__version__= "0.0.2"
+TOKEN = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+CHANNEL = str('XXXXXXXXXXX')
 client = discord.Client()
 
-'''make the bots life easier'''
+# ctf_time api parser
 class ctf_time:
 
-    def Fetch_data():
-        '''Gets data from ctftime'''
+    def get_data():
+        # Gets the data from CTFtime and save the json in a variable
+        global raw_data
 
         url = 'https://ctftime.org/api/v1/events/?limit=1'
-        headers = {'user-agent': 'discordbot/0.0.1'}
+        headers = {'user-agent': 'discordbot/0.0.2'}
 
         Get_request = requests.get(url, headers=headers)
-        data = json.loads(Get_request.text)
+        raw_data = json.loads(Get_request.text)
 
-        with open('data.json', 'w') as outfile:
-            outfile.write(json.dumps(data, indent=4))
+        return raw_data
+
+    def update_data():
+        # updates data.json with new value from raw_data
+        if os.path.isfile('data.json') == True:
+            with open('data.json', 'w+') as outfile:
+                ctf_time.sign_data(raw_data)
+                outfile.write(json.dumps(raw_data, indent=4))
+
+        else:
+            with open('data.json', 'w') as outfile:
+                outfile.write(json.dumps(raw_data, indent=4))
+                outfile.close()
+
+    def sign_data(ToBeHashedJson):
+        # Creates a file with a hash of the json
+        hashed = ctf_time.get_hash(ToBeHashedJson)
+        with open('data.json.hash', 'w') as outfile:
+            print('signed with {}'.format(hashed))
+            outfile.write(hashed)
             outfile.close()
 
+    def get_hash(ofthis):
+        # take one argument and return that object as a string of sha256
+        return hashlib.sha256(str(ofthis).encode()).hexdigest()
 
-        if ctf_time.Is_new() == True:
-            print('it worked')
+    def check_id():
+        # checks the id in the json file and compare it with eachother, if they are the same, it will return true
+        with open('data.json') as current_data:
+            try:
+                data = json.load(current_data)
 
-        # '''if its not true, it will update the hash and send'''
-        else:
+                if str(data[0]['id']) == str(raw_data[0]['id']):
+                    return True
+            except:
+                return False
 
-            with open('data.json.hash', 'w') as outfile:
-                file = open('data.json')
-                ToBeHashed = file.read()
-                outfile.write(hashlib.sha256(ToBeHashed.encode()).hexdigest())
-
-
-    def Is_new():
-        '''Checks if the file has been updated'''
-
-        with open('data.json.hash','r') as outfile:
-            file = open('data.json')
-            ToBeHashedJson = file.read()
-            file.close()
-
-        with open('data.json','r') as outfile:
-            file = open('data.json')
-            ToBeHashedHash = file.read()
-            file.close()
-
-        json_hash = hashlib.sha256(ToBeHashedJson.encode()).hexdigest()
-        data_hash = hashlib.sha256(ToBeHashedHash.encode()).hexdigest()
-        # print("First hash " +json_hash)
-        # print("Second hash "+ data_hash)
-
-        '''checks if the hashfile and the hash are the same and return true'''
-        if json_hash == data_hash:
-            return True
-
-        else:
-            return False
-
-
-    def Message():
+    def Message(message):
+        # Opens the json file and queries the input and return the value
         f = open('data.json', 'r')
         data = json.load(f)
-        print(data[0]['id'])
-        announcement =  str(data[0]['title'])
-        time = str(data[0]['start'])
-        '''String that the bots prints out'''
-        return str("**{0}** {1}" .format(announcement, time))
+
+        if message == 'title':
+            title = str(data[0]['title'])
+            return str(title)
+
+        elif message == 'start':
+            date = str(data[0]['start'])
+            return str(date)
+
+        elif message == 'url':
+            url = str(data[0]['ctftime_url'])
+            return str(url)
+
+        elif message == 'type':
+            type = str(data[0]['description'])
+            return type
+
+        return str('wtf, this is a bug')
 
 @client.event
-async def on_message(message):
+async def main():
 
-    '''Ensure's that the bots does not send things to itself'''
-    if message.author == client.user:
-        return
+    # main loop of program, wait for bot to come online
+    await client.wait_until_ready()
 
-    '''Checks if  is new is false, sends the message to the channel'''
-    if ctf_time.Is_new() == False:
-        await client.send_message(discord.Object(id='534286729817882624'), ctf_time.Message())
+    # Creates a loop so the event does not close
+    while not client.is_closed:
+
+        await asyncio.sleep(5)
+
+        # checks if false, if so it will print a message to discord else it will sleep for 1 hour
+        if ctf_time.check_id() == False:
+            await client.change_presence(game=discord.Game(name='omgomg, new event!'))
+            ctf_time.update_data()
+
+            embed = discord.Embed(title="New CTF event!", color=0x00ff00)
+            embed.add_field(name="Name", value=str(ctf_time.Message('title')), inline=False)
+            embed.add_field(name="CTF type", value=str(ctf_time.Message('type')), inline=False)
+            embed.add_field(name="Starts", value=str(ctf_time.Message('start')), inline=False)
+            embed.add_field(name="URL", value=str(ctf_time.Message('url')), inline=False)
+            await client.send_message(discord.Object(id=CHANNEL), embed=embed)
+
+
+        # sleeps for an hour
+        elif ctf_time.check_id() == True:
+            await client.change_presence(game=discord.Game(name='ZZZzzZzzzZZzzz'))
+            asyncio.sleep(3600)
+            pass
 
 @client.event
 async def on_ready():
-    print('Bot is running.')
+    # Inform the user that the bot is online
+    print('Bot is online!')
+    await client.change_presence(game=discord.Game(name='starting!'))
 
-'''runs the bot'''
+    # updates to be sure there's data
+    ctf_time.update_data()
+
+    # prints out the last message that are in the json file
+    embed = discord.Embed(title="New CTF event!", color=0x00ff00)
+    embed.add_field(name="Name", value=str(ctf_time.Message('title')), inline=False)
+    embed.add_field(name="CTF type", value=str(ctf_time.Message('type')), inline=False)
+    embed.add_field(name="Starts", value=str(ctf_time.Message('start')), inline=False)
+    embed.add_field(name="URL", value=str(ctf_time.Message('url')), inline=False)
+    await client.send_message(discord.Object(id=CHANNEL), embed=embed)
+
+
+
+
+ctf_time.get_data()
+time.sleep(10)
+client.loop.create_task(main())
 client.run(TOKEN)
