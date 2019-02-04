@@ -59,7 +59,7 @@ async def main():
             await asyncio.sleep(1000)
 
         else:
-
+            logger.INFO('No new data')
             data = get_data.current()
             msg = send.message.set(data[0])
             await client.send_message(discord.Object(id=CHANNEL), embed=msg)
@@ -72,6 +72,7 @@ async def overwrite():
     for i in data:
         msg = send.message.set(i)
         await client.say(embed=msg)
+        await asyncio.sleep(1)
 
 @client.command()
 async def ping():
@@ -101,10 +102,8 @@ async def clear(ctx, amount=4):
 
 @client.event
 async def on_ready():
-    print('Logged in as')
-    print(client.user.name)
-    print(client.user.id)
-    print('------')
+    logger.INFO('Logged in as: {}'.format(client.user.name))
+
 
 
 client.run(TOKEN)
