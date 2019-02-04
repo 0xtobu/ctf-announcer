@@ -51,8 +51,8 @@ async def on_message(message):
 async def main():
     while not client.is_closed:
         
-        client.send_message(discord.Object(id=CHANNEL), 'doing check')
-
+        await client.change_presence(game=discord.Game(name='Running!'))
+        
         if get_data.check(get_data.new()) == get_data.check(get_data.current()):
             
             update_data
@@ -93,6 +93,7 @@ async def start():
 async def clear(ctx, amount=4):
     channel = ctx.message.channel
     messages = []
+    await client.change_presence(game=discord.Game(name='Clearing messages!'))
 
     async for message in client.logs_from(channel, limit=int(amount)):
         messages.append(message)
@@ -100,11 +101,10 @@ async def clear(ctx, amount=4):
     await client.delete_messages(messages)
 
 
-
 @client.event
 async def on_ready():
     logger.INFO('Logged in as: {}'.format(client.user.name))
-
+    await client.change_presence(game=discord.Game(name='Ready!'))
 
 
 client.run(TOKEN)
